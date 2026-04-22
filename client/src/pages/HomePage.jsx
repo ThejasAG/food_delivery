@@ -19,15 +19,7 @@ const HomePage = () => {
 
   const handleOrderTypeChange = (type) => {
     if (type === orderType) return;
-    
-    if (cartItems && cartItems.length > 0) {
-      if (window.confirm("Changing order type will clear your current cart. Proceed?")) {
-        clearCart();
-        setOrderType(type);
-      }
-    } else {
-      setOrderType(type);
-    }
+    setOrderType(type);
   };
 
   const fetchRestaurants = async () => {
@@ -41,7 +33,7 @@ const HomePage = () => {
     }
   };
 
-  const filteredRestaurants = (restaurants || []).filter(r => 
+  const filteredRestaurants = (restaurants || []).filter(r =>
     (r.name?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
     (r.cuisine?.toLowerCase() || '').includes(searchTerm.toLowerCase())
   );
@@ -49,7 +41,7 @@ const HomePage = () => {
   return (
     <div className="home-page">
       {/* Hero Section */}
-      <section style={{ 
+      <section style={{
         background: 'linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.6)), url("https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&q=80")',
         backgroundSize: 'cover',
         backgroundPosition: 'center',
@@ -62,7 +54,7 @@ const HomePage = () => {
         textAlign: 'center',
         padding: '20px'
       }}>
-        <motion.h1 
+        <motion.h1
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           style={{ fontSize: '3.5rem', marginBottom: '20px' }}
@@ -76,7 +68,6 @@ const HomePage = () => {
         {/* Order Type Selection */}
         <div style={{ display: 'flex', gap: '15px', marginBottom: '40px' }}>
           {[
-            { id: 'Dine-In', icon: Utensils, label: 'Dine-In' },
             { id: 'Takeaway', icon: ShoppingBag, label: 'Takeaway' },
             { id: 'Delivery', icon: Truck, label: 'Delivery' }
           ].map((type) => {
@@ -112,15 +103,15 @@ const HomePage = () => {
 
         <div style={{ position: 'relative', width: '100%', maxWidth: '600px' }}>
           <Search style={{ position: 'absolute', left: '20px', top: '50%', transform: 'translateY(-50%)', color: '#666' }} />
-          <input 
-            type="text" 
+          <input
+            type="text"
             placeholder="Search for restaurants, cuisines..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            style={{ 
-              width: '100%', 
-              padding: '18px 20px 18px 55px', 
-              borderRadius: '50px', 
+            style={{
+              width: '100%',
+              padding: '18px 20px 18px 55px',
+              borderRadius: '50px',
               border: 'none',
               fontSize: '16px',
               outline: 'none',
@@ -134,12 +125,12 @@ const HomePage = () => {
       <section className="container" style={{ paddingTop: '60px', paddingBottom: '80px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '40px' }}>
           <h2 style={{ fontSize: '2rem' }}>Popular Restaurants</h2>
-          <button style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            gap: '8px', 
-            background: 'white', 
-            padding: '10px 20px', 
+          <button style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            background: 'white',
+            padding: '10px 20px',
             borderRadius: '10px',
             border: '1px solid var(--border)',
             fontWeight: 500
@@ -152,10 +143,10 @@ const HomePage = () => {
         {loading ? (
           <div style={{ textAlign: 'center', padding: '50px' }}>Loading best flavors for you...</div>
         ) : (
-          <div style={{ 
-            display: 'grid', 
-            gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', 
-            gap: '30px' 
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+            gap: '30px'
           }}>
             {filteredRestaurants.map((res, index) => (
               <motion.div

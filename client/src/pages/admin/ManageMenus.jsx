@@ -8,16 +8,21 @@ import {
   Loader2,
   AlertCircle,
   CheckCircle2,
-  ChevronDown
+  ChevronDown,
+  Pencil,
+  Upload
 } from 'lucide-react';
+import getImageUrl from '../../utils/imageUtils';
 
 const ManageMenus = () => {
   const [restaurants, setRestaurants] = useState([]);
-  const [items, setItems] = useState([]); // This would ideally be for a selected restaurant
+  const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [btnLoading, setBtnLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [editingItemId, setEditingItemId] = useState(null);
+  const [uploading, setUploading] = useState(false);
 
   const [formData, setFormData] = useState({
     restaurant_id: '',
@@ -62,6 +67,58 @@ const ManageMenus = () => {
     }
   };
 
+  const handleFileChange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setUploading(true);
+    setError('');
+
+    const formDataUpload = new FormData();
+    formDataUpload.append('file', file);
+
+    try {
+      const response = await api.post('/admin/upload-image', formDataUpload, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      setFormData({ ...formData, image: response.data.image_url });
+      setSuccess('Image uploaded successfully!');
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to upload image');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleStartEdit = (item) => {
+    setError('');
+    setSuccess('');
+    setEditingItemId(item.id);
+    setFormData({
+      restaurant_id: item.restaurant_id,
+      name: item.name,
+      price: item.price,
+      description: item.description,
+      category: item.category,
+      image: item.image || '',
+      is_available: item.is_available,
+      quantity_available: item.quantity_available
+    });
+  };
+
+  const handleCancelEdit = () => {
+    setEditingItemId(null);
+    setFormData({
+      ...formData,
+      name: '',
+      price: '',
+      description: '',
+      image: '',
+      is_available: true,
+      quantity_available: 10
+    });
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setBtnLoading(true);
@@ -69,8 +126,14 @@ const ManageMenus = () => {
     setSuccess('');
 
     try {
-      await api.post('/admin/menu', formData);
-      setSuccess('Menu item added successfully!');
+      if (editingItemId) {
+        await api.put(`/admin/menu/${editingItemId}`, formData);
+        setSuccess('Menu item updated successfully!');
+      } else {
+        await api.post('/admin/menu', formData);
+        setSuccess('Menu item added successfully!');
+      }
+
       setFormData({
         ...formData,
         name: '',
@@ -80,9 +143,10 @@ const ManageMenus = () => {
         is_available: true,
         quantity_available: 10
       });
+      setEditingItemId(null);
       fetchMenuItems(formData.restaurant_id);
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to add menu item');
+      setError(err.response?.data?.message || (editingItemId ? 'Failed to update menu item' : 'Failed to add menu item'));
     } finally {
       setBtnLoading(false);
     }
@@ -118,11 +182,11 @@ const ManageMenus = () => {
     <div className="container" style={{ padding: '60px 0' }}>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr', gap: '40px' }}>
 
-        {/* Add Form */}
+        {/* Add/Edit Form */}
         <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
           <div className="card" style={{ padding: '40px' }}>
             <h1 style={{ marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '15px', fontSize: '1.5rem' }}>
-              <Pizza color="var(--primary)" /> Add Menu Item
+              <Pizza color="var(--primary)" /> {editingItemId ? 'Edit Menu Item' : 'Add Menu Item'}
             </h1>
 
             {error && (
@@ -163,7 +227,7 @@ const ManageMenus = () => {
                   />
                 </div>
                 <div>
-                  <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: 600 }}>Price ($)</label>
+                  <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: 600 }}>Price (₹)</label>
                   <input
                     type="number" step="0.01" required placeholder="0.00"
                     value={formData.price} onChange={(e) => setFormData({ ...formData, price: e.target.value })}
@@ -195,12 +259,42 @@ const ManageMenus = () => {
                 ></textarea>
               </div>
 
-              <div style={{ marginBottom: '30px' }}>
-                <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: 600 }}>Image URL</label>
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: 600 }}>Dish Image</label>
+                <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '10px' }}>
+                  <div style={{
+                    width: '60px', height: '60px', borderRadius: '8px',
+                    border: '1px solid var(--border)', overflow: 'hidden', background: '#f9f9f9',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center'
+                  }}>
+                    {formData.image ? (
+                      <img src={getImageUrl(formData.image)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Preview" />
+                    ) : <Upload size={20} color="#ccc" />}
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <input
+                      type="file" accept="image/*"
+                      onChange={handleFileChange}
+                      style={{ display: 'none' }}
+                      id="menu-item-image-upload"
+                    />
+                    <label
+                      htmlFor="menu-item-image-upload"
+                      style={{
+                        display: 'inline-flex', alignItems: 'center', gap: '8px',
+                        padding: '8px 16px', background: 'white', border: '1px solid var(--border)',
+                        borderRadius: '8px', fontSize: '14px', cursor: 'pointer', fontWeight: 500
+                      }}
+                    >
+                      {uploading ? <Loader2 className="animate-spin" size={16} /> : <Upload size={16} />}
+                      {uploading ? 'Uploading...' : 'Choose File'}
+                    </label>
+                  </div>
+                </div>
                 <input
-                  type="text" placeholder="https://..."
+                  type="text" placeholder="Or paste image URL here..."
                   value={formData.image} onChange={(e) => setFormData({ ...formData, image: e.target.value })}
-                  style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid var(--border)' }}
+                  style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '13px' }}
                 />
               </div>
 
@@ -223,8 +317,18 @@ const ManageMenus = () => {
               </div>
 
               <button disabled={btnLoading} className="btn-primary" style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
-                {btnLoading ? <Loader2 className="animate-spin" size={20} /> : 'Add to Menu'}
+                {btnLoading ? <Loader2 className="animate-spin" size={20} /> : (editingItemId ? 'Update Item' : 'Add to Menu')}
               </button>
+
+              {editingItemId && (
+                <button
+                  type="button"
+                  onClick={handleCancelEdit}
+                  style={{ width: '100%', marginTop: '10px', background: '#F0F2F5', color: '#1F2937', border: 'none', borderRadius: '8px', padding: '12px', cursor: 'pointer', fontWeight: 600 }}
+                >
+                  Cancel Editing
+                </button>
+              )}
             </form>
           </div>
         </motion.div>
@@ -240,15 +344,15 @@ const ManageMenus = () => {
             {items.map((item) => (
               <div key={item.id} className="card" style={{ padding: '15px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                  <img src={item.image || 'https://via.placeholder.com/50'} style={{ width: '50px', height: '50px', borderRadius: '8px', objectFit: 'cover' }} />
+                  <img src={getImageUrl(item.image)} style={{ width: '50px', height: '50px', borderRadius: '8px', objectFit: 'cover' }} alt={item.name} />
                   <div>
                     <h4 style={{ marginBottom: '2px' }}>{item.name}</h4>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <p style={{ fontSize: '12px', color: 'var(--text-main)', fontWeight: 600 }}>${parseFloat(item.price).toFixed(2)}</p>
+                      <p style={{ fontSize: '12px', color: 'var(--text-main)', fontWeight: 600 }}>₹{parseFloat(item.price).toFixed(2)}</p>
                       <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>•</span>
-                      <input 
-                        type="number" 
-                        value={item.quantity_available} 
+                      <input
+                        type="number"
+                        value={item.quantity_available}
                         onChange={(e) => handleUpdateItem(item, { quantity_available: parseInt(e.target.value) })}
                         style={{ width: '50px', padding: '2px 5px', fontSize: '12px', borderRadius: '4px', border: '1px solid var(--border)' }}
                       />
@@ -259,14 +363,15 @@ const ManageMenus = () => {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <button
                     onClick={() => handleUpdateItem(item, { is_available: !item.is_available })}
-                    style={{ 
-                      background: item.is_available ? '#E8F5E9' : '#FFF3E0', 
-                      color: item.is_available ? '#2E7D32' : '#E65100', 
-                      border: 'none', padding: '6px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' 
+                    style={{
+                      background: item.is_available ? '#E8F5E9' : '#FFF3E0',
+                      color: item.is_available ? '#2E7D32' : '#E65100',
+                      border: 'none', padding: '6px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: 600, cursor: 'pointer'
                     }}
                   >
                     {item.is_available ? 'Available' : 'Unavailable'}
                   </button>
+                  <button onClick={() => handleStartEdit(item)} style={{ background: '#F0F2F5', border: 'none', padding: '8px', borderRadius: '6px', cursor: 'pointer' }}><Pencil size={16} /></button>
                   <button
                     onClick={() => handleDelete(item.id)}
                     style={{ background: '#FFE5E5', color: '#D32F2F', border: 'none', padding: '8px', borderRadius: '6px', cursor: 'pointer' }}
@@ -289,4 +394,3 @@ const ManageMenus = () => {
 };
 
 export default ManageMenus;
-

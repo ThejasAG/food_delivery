@@ -184,7 +184,7 @@ const AdminSettingsPage = () => {
                   />
                 </div>
                 <div>
-                  <label style={{ display: 'block', marginBottom: '5px', fontSize: '13px', color: 'var(--text-muted)' }}>Dine-In/Takeaway Cutoff (24h)</label>
+                  <label style={{ display: 'block', marginBottom: '5px', fontSize: '13px', color: 'var(--text-muted)' }}>Takeaway Cutoff (24h)</label>
                   <input 
                     type="text" placeholder="HH:MM"
                     value={settings.dine_in_takeaway_cutoff} 

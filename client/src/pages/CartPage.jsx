@@ -4,8 +4,9 @@ import api from '../services/api';
 import { useCart } from '../context/CartContext';
 import { useOrder } from '../context/OrderContext';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Trash2, ShoppingBag, ArrowRight, CheckCircle2, MapPin, Plus } from 'lucide-react';
+import { Trash2, ShoppingBag, ArrowRight, CheckCircle2, MapPin, Plus, Pencil } from 'lucide-react';
 import MapPicker from '../components/common/MapPicker';
+import getImageUrl from '../utils/imageUtils';
 
 const CartPage = () => {
   const { cartItems, totalAmount, removeFromCart, clearCart } = useCart();
@@ -22,6 +23,8 @@ const CartPage = () => {
     latitude: null,
     longitude: null
   });
+  const [isEditing, setIsEditing] = useState(false);
+  const [editingId, setEditingId] = useState(null);
   const navigate = useNavigate();
 
   React.useEffect(() => {
@@ -49,9 +52,15 @@ const CartPage = () => {
       return;
     }
     try {
-      const response = await api.post('/address/', newAddress);
-      setAddresses([...addresses, response.data.address]);
-      setSelectedAddress(response.data.address);
+      if (isEditing) {
+        const response = await api.put(`/address/${editingId}`, newAddress);
+        setAddresses(addresses.map(a => a.id === editingId ? response.data.address : a));
+        if (selectedAddress?.id === editingId) setSelectedAddress(response.data.address);
+      } else {
+        const response = await api.post('/address/', newAddress);
+        setAddresses([...addresses, response.data.address]);
+        setSelectedAddress(response.data.address);
+      }
       setNewAddress({
         address_line: '',
         landmark: '',
@@ -61,8 +70,37 @@ const CartPage = () => {
         longitude: null
       });
       setShowAddressForm(false);
+      setIsEditing(false);
+      setEditingId(null);
     } catch (error) {
-      alert('Failed to add address');
+      alert(isEditing ? 'Failed to update address' : 'Failed to add address');
+    }
+  };
+
+  const handleEditClick = (e, addr) => {
+    e.stopPropagation();
+    setNewAddress({
+      address_line: addr.address_line,
+      landmark: addr.landmark || '',
+      city: addr.city || '',
+      pincode: addr.pincode || '',
+      latitude: addr.latitude,
+      longitude: addr.longitude
+    });
+    setEditingId(addr.id);
+    setIsEditing(true);
+    setShowAddressForm(true);
+  };
+
+  const handleDeleteAddress = async (e, id) => {
+    e.stopPropagation();
+    if (!window.confirm('Delete this address?')) return;
+    try {
+      await api.delete(`/address/${id}`);
+      setAddresses(addresses.filter(a => a.id !== id));
+      if (selectedAddress?.id === id) setSelectedAddress(null);
+    } catch (error) {
+      alert('Failed to delete address');
     }
   };
 
@@ -134,7 +172,7 @@ const CartPage = () => {
                 style={{ display: 'flex', alignItems: 'center', padding: '20px', marginBottom: '20px' }}
               >
                 <img
-                  src={item.item_details.image || 'https://via.placeholder.com/80'}
+                  src={getImageUrl(item.item_details.image)}
                   alt={item.item_details.name}
                   style={{ width: '80px', height: '80px', objectFit: 'cover', borderRadius: '12px' }}
                 />
@@ -144,7 +182,7 @@ const CartPage = () => {
                 </div>
                 <div style={{ textAlign: 'right' }}>
                   <p style={{ fontWeight: 600, marginBottom: '10px' }}>
-                    ${(parseFloat(item.item_details.price) * item.quantity).toFixed(2)}
+                    ₹{(parseFloat(item.item_details.price) * item.quantity).toFixed(2)}
                   </p>
                   <button
                     onClick={() => removeFromCart(item.item_id)}
@@ -166,36 +204,60 @@ const CartPage = () => {
               <h3 style={{ marginBottom: '15px', display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <MapPin size={20} color="var(--primary)" /> Delivery Address
               </h3>
-              
+
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 {addresses.map(addr => (
-                  <div 
+                  <div
                     key={addr.id}
                     onClick={() => setSelectedAddress(addr)}
-                    style={{ 
-                      padding: '12px', 
-                      borderRadius: '8px', 
+                    style={{
+                      padding: '12px',
+                      borderRadius: '8px',
                       border: selectedAddress?.id === addr.id ? '2px solid var(--primary)' : '1px solid var(--border)',
                       cursor: 'pointer',
                       background: selectedAddress?.id === addr.id ? 'rgba(var(--primary-rgb), 0.05)' : 'white'
                     }}
                   >
-                    {addr.address_line}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                      <div style={{ maxWidth: '80%' }}>
+                        <div style={{ fontWeight: 500, fontSize: '14px', marginBottom: '4px' }}>{addr.address_line}</div>
+                        <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                          {addr.landmark ? `${addr.landmark}, ` : ''}{addr.city} - {addr.pincode}
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <button
+                          onClick={(e) => handleEditClick(e, addr)}
+                          style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px' }}
+                          title="Edit"
+                        >
+                          <Pencil size={14} />
+                        </button>
+                        <button
+                          onClick={(e) => handleDeleteAddress(e, addr.id)}
+                          style={{ background: 'none', border: 'none', color: '#FF4D4D', cursor: 'pointer', padding: '4px' }}
+                          title="Delete"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 ))}
-                
+
                 {showAddressForm ? (
                   <form onSubmit={handleAddAddress} style={{ marginTop: '10px' }}>
                     <div style={{ marginBottom: '15px' }}>
-                      <MapPicker 
+                      <MapPicker
+                        initialPosition={newAddress.latitude ? [newAddress.latitude, newAddress.longitude] : undefined}
                         onLocationSelect={(loc) => setNewAddress({ ...newAddress, ...loc })}
                       />
                     </div>
-                    
+
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '15px' }}>
                       <div style={{ gridColumn: 'span 2' }}>
                         <label style={{ display: 'block', marginBottom: '5px', fontSize: '13px', color: 'var(--text-muted)' }}>Address Line</label>
-                        <input 
+                        <input
                           type="text" required placeholder="e.g. 123 Street Name"
                           value={newAddress.address_line}
                           onChange={(e) => setNewAddress({ ...newAddress, address_line: e.target.value })}
@@ -204,7 +266,7 @@ const CartPage = () => {
                       </div>
                       <div>
                         <label style={{ display: 'block', marginBottom: '5px', fontSize: '13px', color: 'var(--text-muted)' }}>Landmark</label>
-                        <input 
+                        <input
                           type="text" placeholder="Optional"
                           value={newAddress.landmark}
                           onChange={(e) => setNewAddress({ ...newAddress, landmark: e.target.value })}
@@ -213,7 +275,7 @@ const CartPage = () => {
                       </div>
                       <div>
                         <label style={{ display: 'block', marginBottom: '5px', fontSize: '13px', color: 'var(--text-muted)' }}>City</label>
-                        <input 
+                        <input
                           type="text" required placeholder="City"
                           value={newAddress.city}
                           onChange={(e) => setNewAddress({ ...newAddress, city: e.target.value })}
@@ -222,7 +284,7 @@ const CartPage = () => {
                       </div>
                       <div style={{ gridColumn: 'span 2' }}>
                         <label style={{ display: 'block', marginBottom: '5px', fontSize: '13px', color: 'var(--text-muted)' }}>Pincode</label>
-                        <input 
+                        <input
                           type="text" required placeholder="Pincode"
                           value={newAddress.pincode}
                           onChange={(e) => setNewAddress({ ...newAddress, pincode: e.target.value })}
@@ -232,16 +294,23 @@ const CartPage = () => {
                     </div>
 
                     <div style={{ display: 'flex', gap: '10px' }}>
-                      <button type="submit" className="btn-primary" style={{ padding: '8px 15px', fontSize: '14px' }}>Save Address</button>
-                      <button type="button" onClick={() => setShowAddressForm(false)} style={{ background: 'none', border: 'none', color: '#666' }}>Cancel</button>
+                      <button type="submit" className="btn-primary" style={{ padding: '8px 15px', fontSize: '14px' }}>
+                        {isEditing ? 'Update Address' : 'Save Address'}
+                      </button>
+                      <button type="button" onClick={() => {
+                        setShowAddressForm(false);
+                        setIsEditing(false);
+                        setEditingId(null);
+                        setNewAddress({ address_line: '', landmark: '', city: '', pincode: '', latitude: null, longitude: null });
+                      }} style={{ background: 'none', border: 'none', color: '#666' }}>Cancel</button>
                     </div>
                   </form>
                 ) : (
-                  <button 
+                  <button
                     onClick={() => setShowAddressForm(true)}
-                    style={{ 
-                      display: 'flex', alignItems: 'center', gap: '8px', background: 'none', border: '1px dashed var(--border)', 
-                      padding: '10px', borderRadius: '8px', color: 'var(--text-muted)', cursor: 'pointer', marginTop: '5px' 
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: '8px', background: 'none', border: '1px dashed var(--border)',
+                      padding: '10px', borderRadius: '8px', color: 'var(--text-muted)', cursor: 'pointer', marginTop: '5px'
                     }}
                   >
                     <Plus size={16} /> Add New Address
@@ -259,16 +328,16 @@ const CartPage = () => {
 
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '15px' }}>
               <span>Subtotal</span>
-              <span>${totalAmount.toFixed(2)}</span>
+              <span>₹{totalAmount.toFixed(2)}</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '15px' }}>
               <span>Delivery Fee</span>
-              <span>{orderType === 'Delivery' ? '$2.50' : '$0.00'}</span>
+              <span>{orderType === 'Delivery' ? '₹40.00' : '₹0.00'}</span>
             </div>
             <div style={{ borderTop: '1px solid var(--border)', margin: '20px 0', paddingTop: '20px', display: 'flex', justifyContent: 'space-between' }}>
               <span style={{ fontWeight: 700, fontSize: '1.2rem' }}>Total</span>
               <span style={{ fontWeight: 700, fontSize: '1.2rem', color: 'var(--primary)' }}>
-                ${(totalAmount + (orderType === 'Delivery' ? 2.50 : 0)).toFixed(2)}
+                ₹{(totalAmount + (orderType === 'Delivery' ? 40.00 : 0)).toFixed(2)}
               </span>
             </div>
 

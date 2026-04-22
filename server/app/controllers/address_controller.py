@@ -44,3 +44,25 @@ def delete_address(address_id):
     db.session.commit()
     
     return jsonify({"message": "Address deleted successfully"}), 200
+
+@jwt_required()
+def update_address(address_id):
+    user_id = get_jwt_identity()
+    address = Address.query.filter_by(id=address_id, user_id=user_id).first()
+    
+    if not address:
+        return jsonify({"message": "Address not found"}), 404
+        
+    data = request.get_json()
+    if not data or not data.get('address_line'):
+        return jsonify({"message": "Address line is required"}), 400
+        
+    address.address_line = data.get('address_line')
+    address.landmark = data.get('landmark')
+    address.city = data.get('city')
+    address.pincode = data.get('pincode')
+    address.latitude = data.get('latitude')
+    address.longitude = data.get('longitude')
+    
+    db.session.commit()
+    return jsonify({"message": "Address updated successfully", "address": address.to_dict()}), 200

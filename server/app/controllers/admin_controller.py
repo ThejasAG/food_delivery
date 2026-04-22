@@ -1,4 +1,7 @@
-from flask import request, jsonify
+from flask import request, jsonify, current_app
+import os
+from datetime import datetime, timedelta
+from werkzeug.utils import secure_filename
 from app import db
 from app.models.restaurant_model import Restaurant, MenuItem
 from app.models.order_model import Order
@@ -160,3 +163,55 @@ def delete_menu_item(item_id):
     db.session.delete(item)
     db.session.commit()
     return jsonify({"message": "Menu item deleted successfully"}), 200
+
+@jwt_required()
+@admin_required
+def upload_image():
+    """Upload an image to the static/images folder and return the path."""
+    if 'file' not in request.files:
+        return jsonify({"message": "No file part"}), 400
+    
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({"message": "No selected file"}), 400
+    
+    # Optional: Add type validation here
+    filename = secure_filename(file.filename)
+    
+    upload_folder = os.path.join(current_app.root_path, 'static', 'images')
+    if not os.path.exists(upload_folder):
+        os.makedirs(upload_folder)
+        
+    file_path = os.path.join(upload_folder, filename)
+    file.save(file_path)
+    
+    return jsonify({
+        "message": "File uploaded successfully",
+        "image_url": f"/static/images/{filename}"
+    }), 201
+
+@jwt_required()
+@admin_required
+def update_order_prep_time(order_id):
+    """Set the preparation time for a takeaway order."""
+    data = request.get_json()
+    prep_minutes = data.get('prep_minutes')
+    
+    if not prep_minutes:
+        return jsonify({"message": "Preparation minutes are required"}), 400
+        
+    order = Order.query.get(order_id)
+    if not order:
+        return jsonify({"message": "Order not found"}), 404
+        
+    # Set the estimated ready time
+    order.estimated_ready_at = datetime.utcnow() + timedelta(minutes=int(prep_minutes))
+    # Optionally update status to Preparing if it's still Pending
+    if order.status == 'Pending':
+        order.status = 'Preparing'
+        
+    db.session.commit()
+    return jsonify({
+        "message": "Preparation time updated",
+        "estimated_ready_at": order.estimated_ready_at.isoformat()
+    }), 200

@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import api from '../../services/api';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  ClipboardList, 
-  RefreshCcw, 
-  ChevronDown, 
-  CheckCircle2, 
-  Clock, 
-  Truck, 
+import {
+  ClipboardList,
+  RefreshCcw,
+  ChevronDown,
+  CheckCircle2,
+  Clock,
+  Truck,
   Utensils,
   AlertCircle,
   Loader2
@@ -18,6 +18,8 @@ const ManageOrders = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [updatingId, setUpdatingId] = useState(null); // Track which order is updating
+  const [success, setSuccess] = useState('');
+  const [prepTimes, setPrepTimes] = useState({}); // Local state for input fields
 
   const statuses = ['Pending', 'Preparing', 'Out for Delivery', 'Delivered'];
 
@@ -39,12 +41,30 @@ const ManageOrders = () => {
   const handleStatusChange = async (orderId, newStatus) => {
     setUpdatingId(orderId);
     setError('');
+    setSuccess('');
     try {
       await api.put(`/admin/orders/${orderId}/status`, { status: newStatus });
       // Update local state to reflect change immediately
       setOrders(orders.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
     } catch (err) {
       setError('Failed to update order status');
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  const handlePrepTimeUpdate = async (orderId) => {
+    const minutes = prepTimes[orderId];
+    if (!minutes) return;
+
+    setUpdatingId(orderId);
+    setError('');
+    try {
+      await api.put(`/admin/orders/${orderId}/prep-time`, { prep_minutes: minutes });
+      setSuccess('Preparation time updated!');
+      fetchOrders(); 
+    } catch (err) {
+      setError('Failed to update preparation time');
     } finally {
       setUpdatingId(null);
     }
@@ -74,6 +94,12 @@ const ManageOrders = () => {
         </button>
       </div>
 
+      {success && (
+        <div style={{ padding: '15px', background: '#E8F5E9', color: '#2E7D32', borderRadius: '12px', marginBottom: '30px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <CheckCircle2 size={20} /> {success}
+        </div>
+      )}
+
       {error && (
         <div style={{ padding: '15px', background: '#FFEBEE', color: '#B71C1C', borderRadius: '12px', marginBottom: '30px', display: 'flex', alignItems: 'center', gap: '10px' }}>
           <AlertCircle size={20} /> {error}
@@ -87,6 +113,7 @@ const ManageOrders = () => {
               <th style={{ padding: '20px' }}>Order ID</th>
               <th style={{ padding: '20px' }}>Date</th>
               <th style={{ padding: '20px' }}>Total Amount</th>
+              <th style={{ padding: '20px' }}>Type</th>
               <th style={{ padding: '20px' }}>Current Status</th>
               <th style={{ padding: '20px' }}>Action</th>
             </tr>
@@ -98,7 +125,19 @@ const ManageOrders = () => {
                 <td style={{ padding: '20px', color: 'var(--text-muted)' }}>
                   {new Date(order.created_at).toLocaleDateString()}
                 </td>
-                <td style={{ padding: '20px', fontWeight: 600 }}>${parseFloat(order.total_price).toFixed(2)}</td>
+                <td style={{ padding: '20px', fontWeight: 600 }}>₹{parseFloat(order.total_price).toFixed(2)}</td>
+                <td style={{ padding: '20px' }}>
+                  <span style={{ 
+                    padding: '4px 10px', 
+                    borderRadius: '20px', 
+                    fontSize: '12px', 
+                    fontWeight: 600,
+                    background: order.order_type === 'Delivery' ? '#E3F2FD' : order.order_type === 'Takeaway' ? '#F3E5F5' : '#F5F5F5',
+                    color: order.order_type === 'Delivery' ? '#1976D2' : order.order_type === 'Takeaway' ? '#7B1FA2' : '#757575'
+                  }}>
+                    {order.order_type || 'Unknown'}
+                  </span>
+                </td>
                 <td style={{ padding: '20px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', fontWeight: 500 }}>
                     {getStatusIcon(order.status)}
@@ -112,13 +151,13 @@ const ManageOrders = () => {
                         <Loader2 className="animate-spin" size={16} /> Updating...
                       </div>
                     ) : (
-                      <select 
+                      <select
                         value={order.status}
                         onChange={(e) => handleStatusChange(order.id, e.target.value)}
-                        style={{ 
-                          padding: '8px 12px', 
-                          borderRadius: '8px', 
-                          border: '1px solid var(--border)', 
+                        style={{
+                          padding: '8px 12px',
+                          borderRadius: '8px',
+                          border: '1px solid var(--border)',
                           background: 'white',
                           fontSize: '13px',
                           fontWeight: 500,
@@ -131,13 +170,32 @@ const ManageOrders = () => {
                         ))}
                       </select>
                     )}
+                    
+                    {order.order_type === 'Takeaway' && (
+                      <div style={{ marginTop: '10px', display: 'flex', gap: '5px' }}>
+                        <input 
+                          type="number"
+                          placeholder="Min"
+                          value={prepTimes[order.id] || ''}
+                          onChange={(e) => setPrepTimes({ ...prepTimes, [order.id]: e.target.value })}
+                          style={{ width: '50px', padding: '5px', borderRadius: '4px', border: '1px solid var(--border)', fontSize: '12px' }}
+                        />
+                        <button 
+                          onClick={() => handlePrepTimeUpdate(order.id)}
+                          disabled={updatingId === order.id}
+                          style={{ padding: '5px 10px', background: 'var(--primary)', color: 'white', border: 'none', borderRadius: '4px', fontSize: '10px', fontWeight: 600, cursor: 'pointer' }}
+                        >
+                          Set Prep
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
-        
+
         {orders.length === 0 && (
           <div style={{ padding: '60px', textAlign: 'center', color: 'var(--text-muted)' }}>
             No orders found in the system.

@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import api from '../../services/api';
 import { motion } from 'framer-motion';
-import { Plus, Trash2, Pencil, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Plus, Trash2, Pencil, Loader2, AlertCircle, CheckCircle2, Upload } from 'lucide-react';
+import getImageUrl from '../../utils/imageUtils';
 
 const ManageRestaurants = () => {
   const [restaurants, setRestaurants] = useState([]);
@@ -10,6 +11,7 @@ const ManageRestaurants = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [editingRestaurantId, setEditingRestaurantId] = useState(null);
+  const [uploading, setUploading] = useState(false);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -31,6 +33,29 @@ const ManageRestaurants = () => {
       setError('Failed to load restaurants');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleFileChange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setUploading(true);
+    setError('');
+    
+    const formDataUpload = new FormData();
+    formDataUpload.append('file', file);
+
+    try {
+      const response = await api.post('/admin/upload-image', formDataUpload, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      setFormData({ ...formData, image: response.data.image_url });
+      setSuccess('Image uploaded successfully!');
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to upload image');
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -150,11 +175,41 @@ const ManageRestaurants = () => {
               </div>
 
               <div style={{ marginBottom: '15px' }}>
-                <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: 600 }}>Image URL</label>
+                <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: 600 }}>Restaurant Image</label>
+                <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '10px' }}>
+                  <div style={{ 
+                    width: '60px', height: '60px', borderRadius: '8px', 
+                    border: '1px solid var(--border)', overflow: 'hidden', background: '#f9f9f9',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center'
+                  }}>
+                    {formData.image ? (
+                      <img src={getImageUrl(formData.image)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    ) : <Upload size={20} color="#ccc" />}
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <input
+                      type="file" accept="image/*"
+                      onChange={handleFileChange}
+                      style={{ display: 'none' }}
+                      id="restaurant-image-upload"
+                    />
+                    <label 
+                      htmlFor="restaurant-image-upload"
+                      style={{ 
+                        display: 'inline-flex', alignItems: 'center', gap: '8px',
+                        padding: '8px 16px', background: 'white', border: '1px solid var(--border)',
+                        borderRadius: '8px', fontSize: '14px', cursor: 'pointer', fontWeight: 500
+                      }}
+                    >
+                      {uploading ? <Loader2 className="animate-spin" size={16} /> : <Upload size={16} />}
+                      {uploading ? 'Uploading...' : 'Choose File'}
+                    </label>
+                  </div>
+                </div>
                 <input
-                  type="text" placeholder="https://..."
+                  type="text" placeholder="Or paste image URL here..."
                   value={formData.image} onChange={(e) => setFormData({ ...formData, image: e.target.value })}
-                  style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--border)' }}
+                  style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '13px' }}
                 />
               </div>
 
@@ -191,7 +246,7 @@ const ManageRestaurants = () => {
             {restaurants.map((res) => (
               <div key={res.id} className="card" style={{ padding: '15px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                  <img src={res.image || 'https://via.placeholder.com/50'} style={{ width: '50px', height: '50px', borderRadius: '8px', objectFit: 'cover' }} />
+                  <img src={getImageUrl(res.image)} style={{ width: '50px', height: '50px', borderRadius: '8px', objectFit: 'cover' }} />
                   <div>
                     <h4 style={{ marginBottom: '2px' }}>{res.name}</h4>
                     <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{res.cuisine}</p>

@@ -4,6 +4,7 @@ import api from '../services/api';
 import { useCart } from '../context/CartContext';
 import { motion } from 'framer-motion';
 import { Star, Clock, Plus, Check } from 'lucide-react';
+import getImageUrl from '../utils/imageUtils';
 
 const RestaurantPage = () => {
   const { id } = useParams();
@@ -71,20 +72,20 @@ const RestaurantPage = () => {
       {/* Menu Sections */}
       <div className="container" style={{ padding: '60px 0' }}>
         <h2 style={{ marginBottom: '40px' }}>Full Menu</h2>
-        
+
         <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '20px', maxWidth: '800px' }}>
           {menu.map((item) => (
-            <motion.div 
+            <motion.div
               key={item.id}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="card" 
+              className="card"
               style={{ display: 'flex', justifyContent: 'space-between', padding: '20px' }}
             >
               <div style={{ flex: 1 }}>
                 <h3 style={{ marginBottom: '5px' }}>{item.name}</h3>
                 <span style={{ fontWeight: 600, color: 'var(--text-main)', display: 'block', marginBottom: '10px' }}>
-                  ${parseFloat(item.price).toFixed(2)}
+                  ₹{parseFloat(item.price).toFixed(2)}
                 </span>
                 <p style={{ color: 'var(--text-muted)', fontSize: '14px', maxWidth: '100%' }}>
                   {item.description}
@@ -92,25 +93,25 @@ const RestaurantPage = () => {
               </div>
 
               <div style={{ width: '120px', height: '120px', position: 'relative', marginLeft: '20px' }}>
-                <img 
-                  src={item.image || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=120'} 
+                <img
+                  src={getImageUrl(item.image)}
                   alt={item.name}
                   style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '12px' }}
                 />
-                <button 
+                <button
                   disabled={!item.is_available || item.quantity_available <= 0}
                   onClick={() => handleAddToCart(item)}
-                  style={{ 
-                    position: 'absolute', 
-                    bottom: '-10px', 
-                    left: '50%', 
+                  style={{
+                    position: 'absolute',
+                    bottom: '-10px',
+                    left: '50%',
                     transform: 'translateX(-50%)',
-                    backgroundColor: (!item.is_available || item.quantity_available <= 0) 
-                                      ? '#eee' 
-                                      : (addedItems[item.id] ? '#4CAF50' : 'white'),
-                    color: (!item.is_available || item.quantity_available <= 0) 
-                            ? '#888' 
-                            : (addedItems[item.id] ? 'white' : 'var(--primary)'),
+                    backgroundColor: (!item.is_available || item.quantity_available <= 0)
+                      ? '#eee'
+                      : (addedItems[item.id] ? '#4CAF50' : 'white'),
+                    color: (!item.is_available || item.quantity_available <= 0)
+                      ? '#888'
+                      : (addedItems[item.id] ? 'white' : 'var(--primary)'),
                     border: addedItems[item.id] ? 'none' : '1px solid var(--border)',
                     padding: '8px 16px',
                     borderRadius: '8px',

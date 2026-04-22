@@ -5,6 +5,7 @@ from decimal import Decimal
 from datetime import datetime
 from app.models.restaurant_model import Restaurant, MenuItem
 from app.models.address_model import Address
+from app.models.order_model import Order, OrderItem
 from app.utils.location import calculate_distance
 
 @jwt_required()
@@ -34,7 +35,7 @@ def place_order():
 
     # 1. Validate Order Type and Timing
     order_type = data.get('order_type', 'Delivery')
-    if order_type not in ['Dine-In', 'Takeaway', 'Delivery']:
+    if order_type not in ['Takeaway', 'Delivery']:
         return jsonify({"message": "Invalid order type"}), 400
 
     current_time = datetime.now().strftime("%H:%M")
@@ -43,7 +44,7 @@ def place_order():
             return jsonify({"message": "Orders are closed for delivery"}), 400
     else:
         if current_time > restaurant.dine_in_takeaway_cutoff:
-            return jsonify({"message": "Dine-in and takeaway are closed"}), 400
+            return jsonify({"message": "Takeaway is closed"}), 400
 
     # 2. Validate Distance (if Delivery)
     address_id = data.get('address_id')

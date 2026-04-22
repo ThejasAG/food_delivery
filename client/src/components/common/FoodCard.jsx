@@ -2,29 +2,30 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Star, Clock, MapPin } from 'lucide-react';
+import getImageUrl from '../../utils/imageUtils';
 
 const FoodCard = ({ restaurant }) => {
   const navigate = useNavigate();
 
   return (
-    <motion.div 
+    <motion.div
       whileHover={{ y: -8 }}
-      className="card" 
+      className="card"
       onClick={() => navigate(`/restaurant/${restaurant.id}`)}
       style={{ cursor: 'pointer', overflow: 'hidden' }}
     >
       <div style={{ position: 'relative', height: '180px' }}>
-        <img 
-          src={restaurant.image || 'https://via.placeholder.com/400x200?text=Food'} 
+        <img
+          src={getImageUrl(restaurant.image)}
           alt={restaurant.name}
           style={{ width: '100%', height: '100%', objectFit: 'cover' }}
         />
-        <div style={{ 
-          position: 'absolute', 
-          top: '12px', 
-          right: '12px', 
-          backgroundColor: 'white', 
-          padding: '4px 8px', 
+        <div style={{
+          position: 'absolute',
+          top: '12px',
+          right: '12px',
+          backgroundColor: 'white',
+          padding: '4px 8px',
           borderRadius: '20px',
           display: 'flex',
           alignItems: 'center',

@@ -1,7 +1,55 @@
 import React, { useState, useEffect } from 'react';
 import api from '../services/api';
 import { motion } from 'framer-motion';
-import { Package, ChevronRight, CheckCircle, Truck, Clock, Utensils } from 'lucide-react';
+import { Package, ChevronRight, CheckCircle, Truck, Clock, Utensils, Timer } from 'lucide-react';
+
+const CountdownTimer = ({ targetDate }) => {
+  const calculateTimeLeft = () => {
+    const difference = +new Date(targetDate) - +new Date();
+    let timeLeft = {};
+
+    if (difference > 0) {
+      timeLeft = {
+        mins: Math.floor((difference / 1000 / 60) % 60),
+        secs: Math.floor((difference / 1000) % 60)
+      };
+    } else {
+      timeLeft = { mins: 0, secs: 0 };
+    }
+    return timeLeft;
+  };
+
+  const [timeLeft, setTimeLeft] = useState(calculateTimeLeft());
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setTimeLeft(calculateTimeLeft());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [targetDate]);
+
+  const isExpired = timeLeft.mins === 0 && timeLeft.secs === 0;
+
+  return (
+    <div style={{ 
+      display: 'flex', 
+      alignItems: 'center', 
+      gap: '8px', 
+      color: isExpired ? '#4CAF50' : '#1976D2', 
+      fontSize: '14px', 
+      fontWeight: '700',
+      background: isExpired ? '#E8F5E9' : '#E3F2FD',
+      padding: '8px 15px',
+      borderRadius: '10px',
+      marginTop: '15px'
+    }}>
+      <Timer size={18} />
+      <span>
+        {isExpired ? 'Ready for Pickup!' : `Pick up in: ${timeLeft.mins}m ${timeLeft.secs}s`}
+      </span>
+    </div>
+  );
+};
 
 const OrdersPage = () => {
   const [orders, setOrders] = useState([]);
@@ -50,7 +98,7 @@ const OrdersPage = () => {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           {orders.map((order, index) => (
-            <motion.div 
+            <motion.div
               key={order.id}
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
@@ -60,17 +108,23 @@ const OrdersPage = () => {
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px' }}>
                 <div>
-                  <h3 style={{ fontSize: '1.2rem', marginBottom: '5px' }}>Order #{order.id}</h3>
+                  <h3 style={{ fontSize: '1.2rem', marginBottom: '5px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <span style={{ color: 'var(--primary)' }}>#{order.id}</span>
+                    <span>•</span>
+                    <span style={{ fontSize: '14px', fontWeight: 500, background: '#F0F2F5', padding: '2px 8px', borderRadius: '4px' }}>
+                      {order.order_type === 'Takeaway' ? 'Pickup Ticket' : 'Delivery Order'}
+                    </span>
+                  </h3>
                   <p style={{ color: 'var(--text-muted)', fontSize: '14px' }}>
                     Placed on {new Date(order.created_at).toLocaleDateString()} at {new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </p>
                 </div>
-                <div style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  gap: '8px', 
-                  backgroundColor: '#F0F2F5', 
-                  padding: '6px 15px', 
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  backgroundColor: '#F0F2F5',
+                  padding: '6px 15px',
                   borderRadius: '20px',
                   fontSize: '14px',
                   fontWeight: 600
@@ -80,25 +134,44 @@ const OrdersPage = () => {
                 </div>
               </div>
 
+              {order.order_type === 'Takeaway' && (order.status === 'Pending' || order.status === 'Preparing') && (
+                <div style={{ marginBottom: '20px' }}>
+                  {order.estimated_ready_at ? (
+                    <CountdownTimer targetDate={order.estimated_ready_at} />
+                  ) : (
+                    <div style={{ 
+                      display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 15px', 
+                      background: '#FFF3E0', color: '#E65100', borderRadius: '10px', 
+                      fontSize: '14px', fontWeight: 600 
+                    }}>
+                      <Clock size={16} /> Preparing (Estimated 10 min)
+                    </div>
+                  )}
+                  <p style={{ marginTop: '10px', fontSize: '12px', color: 'var(--text-muted)' }}>
+                    Show your <strong>Pickup Ticket #{order.id}</strong> at the counter to collect your order.
+                  </p>
+                </div>
+              )}
+
               <div style={{ borderTop: '1px solid var(--border)', paddingTop: '20px' }}>
                 {order.items.map((item, i) => (
                   <div key={i} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', fontSize: '14px' }}>
                     <span style={{ color: 'var(--text-main)' }}>{item.quantity}x Dish Item</span> {/* Ideally we'd join item name here */}
-                    <span style={{ fontWeight: 500 }}>${item.price.toFixed(2)}</span>
+                    <span style={{ fontWeight: 500 }}>₹{item.price.toFixed(2)}</span>
                   </div>
                 ))}
-                
+
                 <div style={{ borderTop: '1px dashed var(--border)', marginTop: '15px', paddingTop: '15px', display: 'flex', justifyContent: 'space-between' }}>
                   <span style={{ fontWeight: 700 }}>Total Paid</span>
-                  <span style={{ fontWeight: 700, color: 'var(--primary)' }}>${order.total_price.toFixed(2)}</span>
+                  <span style={{ fontWeight: 700, color: 'var(--primary)' }}>₹{order.total_price.toFixed(2)}</span>
                 </div>
               </div>
 
-              <button style={{ 
-                marginTop: '20px', 
-                background: 'none', 
-                color: 'var(--primary)', 
-                fontSize: '14px', 
+              <button style={{
+                marginTop: '20px',
+                background: 'none',
+                color: 'var(--primary)',
+                fontSize: '14px',
                 fontWeight: 600,
                 display: 'flex',
                 alignItems: 'center',

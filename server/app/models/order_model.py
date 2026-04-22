@@ -12,6 +12,7 @@ class Order(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     order_type = db.Column(db.Enum('Dine-In', 'Takeaway', 'Delivery'), default='Delivery')
     address_id = db.Column(db.Integer, db.ForeignKey('addresses.id'), nullable=True)
+    estimated_ready_at = db.Column(db.DateTime, nullable=True)
 
     # Relationships
     items = db.relationship('OrderItem', backref='order', lazy=True, cascade="all, delete-orphan")
@@ -23,9 +24,10 @@ class Order(db.Model):
             'restaurant_id': self.restaurant_id,
             'total_price': float(self.total_price),
             'status': self.status,
-            'created_at': self.created_at.isoformat(),
+            'created_at': self.created_at.isoformat() + 'Z',
             'order_type': self.order_type,
             'address_id': self.address_id,
+            'estimated_ready_at': self.estimated_ready_at.isoformat() + 'Z' if self.estimated_ready_at else None,
             'items': [item.to_dict() for item in self.items]
         }
 
